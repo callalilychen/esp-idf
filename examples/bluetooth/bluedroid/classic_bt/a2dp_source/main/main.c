@@ -25,6 +25,7 @@
 #include "esp_gap_bt_api.h"
 #include "esp_a2dp_api.h"
 #include "esp_avrc_api.h"
+#include "i2s_example.h"
 
 #define BT_AV_TAG               "BT_AV"
 #define BT_RC_CT_TAG            "RCCT"
@@ -140,6 +141,8 @@ void app_main(void)
         ESP_LOGE(BT_AV_TAG, "%s enable bluedroid failed\n", __func__);
         return;
     }
+     
+    app_init();
 
     /* create application task */
     bt_app_task_start_up();
@@ -217,8 +220,10 @@ static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param)
             break;
         case ESP_BT_GAP_DEV_PROP_EIR:
             eir = (uint8_t *)(p->val);
+            ESP_LOGI(BT_AV_TAG, "--EIR %s", eir);
             break;
         case ESP_BT_GAP_DEV_PROP_BDNAME:
+            ESP_LOGI(BT_AV_TAG, "--NAMEBD");
         default:
             break;
         }
@@ -233,7 +238,8 @@ static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param)
     /* search for device named "ESP_SPEAKER" in its extended inqury response */
     if (eir) {
         get_name_from_eir(eir, s_peer_bdname, NULL);
-        if (strcmp((char *)s_peer_bdname, "ESP_SPEAKER") != 0) {
+        if (strcmp((char *)s_peer_bdname, "Philips SHB7000") != 0) {
+            ESP_LOGI(BT_AV_TAG, "Found a target device, address %s, name %s", bda_str, s_peer_bdname);
             return;
         }
 
@@ -248,6 +254,7 @@ static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param)
 
 void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
+    ESP_LOGI(BT_AV_TAG, "Got event: %d", event);
     switch (event) {
     case ESP_BT_GAP_DISC_RES_EVT: {
         filter_inquiry_scan_result(param);
@@ -291,10 +298,10 @@ void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
         } else {
             ESP_LOGI(BT_AV_TAG, "Input pin code: 1234");
             esp_bt_pin_code_t pin_code;
-            pin_code[0] = '1';
-            pin_code[1] = '2';
-            pin_code[2] = '3';
-            pin_code[3] = '4';
+            pin_code[0] = '0';
+            pin_code[1] = '0';
+            pin_code[2] = '0';
+            pin_code[3] = '0';
             esp_bt_gap_pin_reply(param->pin_req.bda, true, 4, pin_code);
         }
         break;
@@ -343,7 +350,7 @@ static void bt_av_hdl_stack_evt(uint16_t event, void *p_param)
 
         /* initialize A2DP source */
         esp_a2d_register_callback(&bt_app_a2d_cb);
-        esp_a2d_source_register_data_callback(bt_app_a2d_data_cb);
+        esp_a2d_source_register_data_callback(i2s_app_a2d_data_cb);
         esp_a2d_source_init();
 
         /* set discoverable and connectable mode */
